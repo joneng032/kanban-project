@@ -19,22 +19,38 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        working-directory: ./kanban-project
+        working-directory: .
         run: |
           npm ci
 
       - name: Install Playwright browsers
-        working-directory: ./kanban-project
+        working-directory: .
         run: |
           npx playwright install --with-deps
 
+      - name: Start static server
+        working-directory: .
+        run: |
+          # Start a simple static server in background for the tests
+          npx http-server . -p 8000 -c-1 > http-server.log 2>&1 &
+          # Wait until the server responds (retry loop)
+          for i in {1..30}; do
+            if curl -sSf http://localhost:8000/ >/dev/null; then
+              echo "Server is up"
+              break
+            fi
+            echo "Waiting for server... ($i)"
+            sleep 2
+          done
+
+
       - name: Run CSS linter
-        working-directory: ./kanban-project
+        working-directory: .
         run: |
           npm run lint:css
 
       - name: Run Playwright interaction test
-        working-directory: ./kanban-project
+        working-directory: .
         env:
           # Ensure headful is disabled in CI
           HEADFUL: ''
