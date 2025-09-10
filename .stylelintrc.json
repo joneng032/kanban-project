@@ -1,0 +1,19 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "no-unknown-animations": true,
+    "at-rule-no-unknown": [true, { "ignoreAtRules": ["tailwind", "apply", "variants", "responsive", "screen"] }],
+    "property-no-unknown": [true, { "ignoreProperties": ["composes"] }],
+
+  "font-family-name-quotes": null,
+    "rule-empty-line-before": null,
+    "declaration-block-single-line-max-declarations": null,
+    "color-function-notation": null,
+    "alpha-value-notation": null,
+    "length-zero-no-unit": null,
+    "no-descending-specificity": null,
+    "selector-class-pattern": null,
+    "selector-id-pattern": null,
+    "comment-empty-line-before": null
+  }
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Project Manager</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <!-- External Scripts: Content inside these tags is ignored by the browser. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+    
+    <link href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Inline script for Tailwind config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300" onclick="App.closeAllDropdowns(event)">
+
+    <div id="project-selection-view" class="container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="text-center mb-8"><h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">My Projects</h1><p class="text-gray-500 dark:text-gray-400 mt-2">Select a project to view or create a new one.</p></header>
+        <div id="project-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div class="mt-8 text-center flex justify-center items-center gap-4">
+            <button onclick="App.openNewProjectModal()" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700">+ Create New Project</button>
+            <button onclick="App.importProject()" class="bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-700">Import Project</button>
+        </div>
+        <input type="file" id="import-file-input" class="hidden" accept=".json,application/json">
+    </div>
+    
+    <div id="active-project-view" class="hidden container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="text-center mb-4">
+            <button id="back-to-projects-btn" onclick="App.showProjectSelectionView()" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mb-2">&larr; Back to Projects</button>
+            <button id="back-to-parent-btn" onclick="App.goBackToParent()" class="hidden text-sm text-green-600 dark:text-green-400 hover:underline mb-2">&uarr; Back to Parent Board</button>
+            <h1 id="main-title" class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Project Title</h1>
+            <p id="main-subtitle" class="text-gray-500 dark:text-gray-400 mt-2">Project subtitle.</p>
+        </header>
+
+        <div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                <button id="board-view-btn" onclick="App.switchView('board')" class="view-btn px-3 py-1 text-sm font-medium rounded-md">Board</button>
+                <button id="gantt-view-btn" onclick="App.switchView('gantt')" class="view-btn px-3 py-1 text-sm font-medium rounded-md">Gantt</button>
+                <button id="calendar-view-btn" onclick="App.switchView('calendar')" class="view-btn px-3 py-1 text-sm font-medium rounded-md">Calendar</button>
+                <button id="dashboard-view-btn" onclick="App.switchView('dashboard')" class="view-btn px-3 py-1 text-sm font-medium rounded-md">Dashboard</button>
+            </div>
+            <div class="flex-grow flex flex-wrap md:flex-nowrap items-center gap-4">
+                <input type="text" id="search-input" placeholder="Search items..." class="w-full md:w-auto flex-grow modal-input">
+                <select id="tag-filter-select" multiple class="w-full md:w-64 modal-input"></select>
+                <select id="assignee-filter-select" multiple class="w-full md:w-64 modal-input"></select>
+                <select id="special-filter-select" class="w-full md:w-auto modal-input">
+                    <option value="all">Filter by...</option>
+                    <optgroup label="Due Date">
+                        <option value="overdue">Overdue</option>
+                        <option value="due_today">Due Today</option>
+                        <option value="due_this_week">Due This Week</option>
+                    </optgroup>
+                    <optgroup label="Properties">
+                        <option value="no_assignee">No Assignee</option>
+                        <option value="no_tags">No Tags</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="flex items-center space-x-4">
+                 <button onclick="App.openInstructionsModal()" title="Help" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0110 4a3 3 0 013 3c0 1.59-1.29 2.895-2.97 2.994A1 1 0 019 12v-.001a1 1 0 011-1 1 1 0 100-2 1 1 0 00-1-1 1 1 0 01-1-1V8a1 1 0 011-1zm-1 5a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <button onclick="App.openAutomationsModal()" title="Automations" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM10 3a1 1 0 01.707.293l2 2a1 1 0 01-1.414 1.414L11 6.414V10a1 1 0 11-2 0V6.414L8.707 6.707a1 1 0 01-1.414-1.414l2-2A1 1 0 0110 3zM3 9a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm1 5a1 1 0 100 2h12a1 1 0 100-2H4z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <button onclick="App.openSettingsModal()" title="Settings" class="text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" /></svg></button>
+                <div class="flex items-center space-x-2"><span class="text-sm text-gray-500 dark:text-gray-400">Dark Mode</span><div class="relative inline-block w-10 align-middle"><input type="checkbox" id="dark-mode-toggle" class="absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/><label for="dark-mode-toggle" class="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div></div>
+            </div>
+        </div>
+
+        <div id="board-view">
+            <div id="board-columns-container" class="flex overflow-x-auto space-x-6 pb-4"></div>
+        </div>
+        
+        <div id="gantt-view" class="hidden">
+            <div id="gantt_here" style='width:100%; height:600px;'></div>
+        </div>
+
+        <div id="calendar-view" class="hidden">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                <div class="calendar-legend">
+                    <span class="font-semibold mr-4 text-sm">Legend:</span>
+                    <div class="legend-item"><div class="legend-color-box priority-high"></div> High</div>
+                    <div class="legend-item"><div class="legend-color-box priority-medium"></div> Medium</div>
+                    <div class="legend-item"><div class="legend-color-box priority-low"></div> Low</div>
+                    <div class="legend-item"><span class="opacity-60 line-through">Task</span> Done</div>
+                </div>
+                <div id="calendar-header" class="flex justify-between items-center mb-4">
+                     <div class="flex items-center gap-2">
+                        <button id="prev-month-btn" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <button id="next-month-btn" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                        </button>
+                        <button id="today-btn" class="text-sm font-semibold px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600">Today</button>
+                    </div>
+                    <h2 id="month-year-title" class="text-xl font-bold"></h2>
+                    <div></div> <!-- Spacer -->
+                </div>
+                <div class="grid grid-cols-7 text-center font-semibold text-sm text-gray-600 dark:text-gray-300 mb-2"><div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div></div>
+                <div id="calendar-grid"></div>
+            </div>
+        </div>
+
+        <div id="dashboard-view" class="hidden">
+            <div id="task-dashboard" class="hidden"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"><h3 class="text-gray-500">Tasks Completed (Week)</h3><p id="completed-week-stat" class="text-3xl font-bold mt-2">0</p></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"><h3 class="text-gray-500">Overdue Tasks</h3><p id="overdue-stat" class="text-3xl font-bold mt-2 text-red-500">0</p></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm md:col-span-2"><h3 class="text-gray-500">Active Tasks by Priority</h3><canvas id="priority-chart" class="mt-2"></canvas></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm lg:col-span-2"><h3 class="text-lg font-semibold">Cumulative Flow Diagram</h3><canvas id="flow-chart" class="mt-4"></canvas></div></div></div>
+            <div id="reserve-study-dashboard" class="hidden"><div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6"><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"><h3 class="text-gray-500">Total Components</h3><p id="total-components-stat" class="text-3xl font-bold mt-2">0</p></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"><h3 class="text-gray-500">Total Replacement Value</h3><p id="total-value-stat" class="text-3xl font-bold mt-2">$0</p></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm"><h3 class="text-gray-500">Due in Next 5 Years</h3><p id="due-soon-stat" class="text-3xl font-bold mt-2 text-amber-500">0</p></div></div><div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm lg:col-span-3"><h3 class="text-lg font-semibold">Components by Condition</h3><canvas id="condition-chart" class="mt-4"></canvas></div></div></div>
+        </div>
+    </div>
+
+    <button id="global-add-btn" onclick="App.openModal()" title="Add New Item" class="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hidden"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg></button>
+    <div id="toast-notification" class="toast"></div>
+
+    <div id="modals-container">
+        <div id="new-project-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all"><form id="new-project-form"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Create New Project</h3></div><div class="p-6 space-y-4"><div><label for="project-name" class="block text-sm font-medium">Project Name</label><input type="text" id="project-name" class="modal-input" required placeholder="e.g., My Daily To-Do List"></div><div><label class="block text-sm font-medium">Project Type</label><div class="grid grid-cols-2 gap-4 mt-1"><label><input type="radio" name="project-type" value="tasks" class="sr-only peer" checked><div class="p-4 rounded-lg border peer-checked:border-indigo-500 peer-checked:ring-2 peer-checked:ring-indigo-500 cursor-pointer">Tasks</div></label><label><input type="radio" name="project-type" value="reserve-study" class="sr-only peer"><div class="p-4 rounded-lg border peer-checked:border-indigo-500 peer-checked:ring-2 peer-checked:ring-indigo-500 cursor-pointer">Reserve Study</div></label></div></div><div id="template-selection-container"><label class="block text-sm font-medium">Template</label><select id="project-template" class="modal-input mt-1"></select></div></div><div class="p-6 bg-gray-50 dark:bg-gray-800/50 flex justify-end space-x-3 rounded-b-xl"><button type="button" onclick="App.closeNewProjectModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Cancel</button><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Create Project</button></div></form></div></div>
+        
+        <div id="task-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl transform transition-all max-h-[90vh] flex flex-col">
+                <div class="p-6 border-b dark:border-gray-700"><h3 id="task-modal-title" class="text-xl font-bold">Add New Task</h3></div>
+                <div class="flex-grow overflow-y-auto grid grid-cols-1 md:grid-cols-3">
+                    <div class="md:col-span-2">
+                        <!-- Task Modal Tabs -->
+                        <div class="task-tabs">
+                            <button type="button" class="task-tab active" onclick="showTaskTab('details')">📝 Details</button>
+                            <button type="button" class="task-tab" onclick="showTaskTab('history')">📜 History</button>
+                        </div>
+
+                        <!-- Details Tab -->
+                        <div id="details-tab" class="tab-content active">
+                            <form id="task-form" class="p-6 space-y-4"><input type="hidden" id="task-id"><div><label for="task-title" class="block text-sm font-medium">Title</label><input type="text" id="task-title" class="modal-input" required></div><div><label for="task-details" class="block text-sm font-medium">Details</label><textarea id="task-details" rows="4" class="modal-input"></textarea></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label for="task-start-date" class="block text-sm font-medium">Start Date</label><input type="date" id="task-start-date" class="modal-input"></div><div><label for="task-end-date" class="block text-sm font-medium">Due Date</label><input type="date" id="task-end-date" class="modal-input"></div></div><div id="reserve-study-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"><div><label for="task-project-number" class="block text-sm font-medium">Project Number</label><input type="text" id="task-project-number" class="modal-input" placeholder="e.g., 123-456"></div><div><label for="task-value" class="block text-sm font-medium">Replacement Value ($)</label><input type="number" id="task-value" class="modal-input" placeholder="e.g., 5000"></div><div><label for="task-condition" class="block text-sm font-medium">Condition</label><select id="task-condition" class="modal-input"><option value="excellent">Excellent</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option><option value="failed">Failed</option></select></div></div><div><div class="flex justify-between items-center"><label class="block text-sm font-medium">Checklist</label><select id="insert-checklist-template" class="modal-input text-xs w-auto p-1"><option value="">Insert Template...</option></select></div><div id="checklist-container" class="mt-1 space-y-2"></div><div class="flex items-center space-x-2 mt-2"><input type="text" id="new-checklist-item" placeholder="Add a checklist item..." class="modal-input flex-grow"><input type="date" id="new-checklist-item-date" class="modal-input w-auto text-xs p-1"><button type="button" id="add-checklist-item-btn" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-3 rounded-lg">+</button></div></div>
+                            <div class="p-6"><h4 class="text-lg font-semibold mb-3">Attachments</h4><div id="attachments-container" class="space-y-2 max-h-32 overflow-y-auto"></div><form id="new-attachment-form" class="mt-3 flex items-center gap-2"><input type="text" id="new-attachment-name" placeholder="Link Name" class="modal-input flex-grow" required><input type="url" id="new-attachment-url" placeholder="https://..." class="modal-input flex-grow" required><button type="submit" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-3 rounded-lg">+</button></form></div>
+                            <div class="p-6 relative"><h4 class="text-lg font-semibold mb-3">Comments</h4><div id="comments-container" class="space-y-4 max-h-48 overflow-y-auto pr-2"></div><form id="new-comment-form" class="mt-4 flex items-center space-x-2"><input type="text" id="new-comment-input" placeholder="Add a comment..." class="modal-input flex-grow" required><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Post</button></form><div id="mention-autocomplete-container"></div></div>
+                        </div>
+
+                        <!-- History Tab -->
+                        <div id="history-tab" class="tab-content">
+                            <div class="history-container">
+                                <div id="task-history-content">
+                                    <div class="no-history">📜 Loading history...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-6 border-l dark:border-gray-700 space-y-6 bg-gray-50 dark:bg-gray-800/50">
+                        <div><label for="task-priority" class="block text-sm font-medium">Priority</label><select id="task-priority" class="modal-input"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+                        <div><label class="block text-sm font-medium">Assignees</label><div id="assignees-container" class="mt-2 flex flex-wrap gap-2"></div><select id="add-assignee-select" class="modal-input mt-2"></select></div>
+                        <div><label class="block text-sm font-medium">Tags</label><div id="tags-container" class="mt-2 flex flex-wrap gap-2"></div><select id="add-tag-select" class="modal-input mt-2"></select></div>
+                        <div id="dependency-section"> <label class="block text-sm font-medium">Dependencies</label> <div id="dependency-list" class="mt-1 space-y-2 max-h-24 overflow-y-auto"></div> <select id="new-dependency-select" class="modal-input mt-2"></select></div>
+                        <div id="time-tracking-section" class="pt-4 mt-4 border-t dark:border-gray-700"> <h4 class="font-semibold mb-2">Time Tracking</h4> <p class="text-2xl font-bold" id="total-time-logged">00:00:00</p> <button type="button" id="time-tracker-btn" class="w-full mt-2 bg-green-500 text-white font-semibold py-2 px-4 rounded-lg">Start Timer</button> <div id="time-logs-container" class="mt-4 text-xs space-y-1 max-h-24 overflow-y-auto"></div></div>
+                        <div id="recurrence-section" class="pt-4 mt-4 border-t dark:border-gray-700"> <h4 class="font-semibold mb-2">Recurring Task</h4> <select id="recurrence-type" class="modal-input"> <option value="none">None</option> <option value="daily">Daily</option> <option value="weekly">Weekly</option> <option value="monthly">Monthly</option> </select> <div id="recurrence-options" class="mt-2 space-y-2 hidden"> <div id="weekly-options" class="hidden"> <label class="block text-sm font-medium">Day of the week</label> <select id="recurrence-weekly-day" class="modal-input"> <option value="0">Sunday</option> <option value="1">Monday</option> <option value="2">Tuesday</option> <option value="3">Wednesday</option> <option value="4">Thursday</option> <option value="5">Friday</option> <option value="6">Saturday</option> </select> </div> <div id="monthly-options" class="hidden"> <label class="block text-sm font-medium">Day of the month</label> <input type="number" id="recurrence-monthly-day" class="modal-input" min="1" max="31" value="1"> </div> </div></div>
+                    </div>
+                </div>
+                <div class="p-4 mt-auto bg-gray-50 dark:bg-gray-800/50 border-t dark:border-gray-700 flex justify-between items-center space-x-3 rounded-b-xl">
+                    <div><button type="button" id="create-board-btn" class="bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hidden">Create Sub-Board</button></div>
+                    <div class="flex items-center space-x-3">
+                        <button type="button" id="delete-task-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hidden">Delete</button>
+                        <button type="button" id="archive-task-btn" class="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-lg">Archive</button>
+                        <button type="button" onclick="App.closeModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Cancel</button>
+                        <button type="submit" form="task-form" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Save Task</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="automations-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Automations</h3></div><div class="p-6"><div id="automation-list" class="space-y-3 mb-6"></div><form id="new-automation-form" class="p-4 border-t dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 rounded-lg"><h4 class="font-semibold mb-3">Create New Rule</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end"><div><label class="block text-sm font-medium">When...</label><select id="automation-trigger-type" class="modal-input mt-1"><option value="move">Card is moved to column</option><option value="tag_add">Tag is added to card</option><option value="checklist_completed">Checklist is completed</option></select></div><div id="automation-trigger-value-container"><select id="automation-trigger-value" class="modal-input w-full"></select></div><div><label class="block text-sm font-medium">Then...</label><select id="automation-action-type" class="modal-input mt-1"><option value="move_to_column">Move card to column</option><option value="add_tag">Add tag to card</option><option value="assign_user">Assign user to card</option><option value="set_priority">Set priority for card</option></select></div><div id="automation-action-value-container"><select id="automation-action-value" class="modal-input w-full"></select></div></div><button type="submit" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Add Rule</button></form></div><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeAutomationsModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Close</button></div></div></div>
+        <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg p-6"><h3 class="text-xl font-bold mb-6">Settings</h3><div class="space-y-6"><div><h4 class="font-semibold mb-2">Project Name</h4><div class="flex items-center space-x-2"><input type="text" id="project-name-edit" class="modal-input flex-grow"><button type="button" id="save-project-name-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">Save</button></div></div><div><h4 class="font-semibold mb-2">Manage Team</h4><button onclick="App.openTeamManagementModal()" class="bg-teal-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-600">Manage Team Members</button></div><div><h4 class="font-semibold mb-2">Manage Tags</h4><button onclick="App.openTagsManagementModal()" class="bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-600">Manage Project Tags</button></div><div><h4 class="font-semibold mb-2">Manage Checklist Templates</h4><button onclick="App.openChecklistTemplatesModal()" class="bg-pink-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-pink-600">Manage Checklists</button></div><div><h4 class="font-semibold mb-2">Project Activity</h4><button onclick="App.openActivityLogModal()" class="bg-cyan-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-cyan-600">View Activity Log</button></div><div><h4 class="font-semibold mb-2">Save Project as Template</h4><button onclick="App.openSaveAsTemplateModal()" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600">Save as Template</button></div><div><h4 class="font-semibold mb-2">Archived Items</h4><button onclick="App.openArchiveModal()" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600">View Archived Items</button></div><div><h4 class="font-semibold mb-2">Delete Project</h4><button id="delete-project-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700">Delete Project</button></div></div><div class="mt-8 flex justify-end"><button type="button" onclick="App.closeSettingsModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Close</button></div></div></div>
+        <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6"><h3 id="confirm-title" class="text-lg font-bold">Confirm Action</h3><p id="confirm-message" class="mt-2 text-sm">Are you sure?</p><div class="mt-6 flex justify-end space-x-3"><button id="cancel-confirm-btn" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Cancel</button><button id="confirm-action-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg">Confirm</button></div></div></div>
+        <div id="column-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md"><form id="column-form"><div class="p-6 border-b dark:border-gray-700"><h3 id="column-modal-title" class="text-xl font-bold"></h3></div><div class="p-6"><input type="hidden" id="column-id"><div><label for="column-name" class="block text-sm font-medium">Column Name</label><input type="text" id="column-name" class="modal-input mt-1" required></div><div class="mt-4"><label for="column-wip-limit" class="block text-sm font-medium">WIP Limit (0 for no limit)</label><input type="number" id="column-wip-limit" class="modal-input mt-1" min="0" value="0"></div></div><div class="p-6 bg-gray-50 dark:bg-gray-800/50 flex justify-end space-x-3 rounded-b-xl"><button type="button" onclick="App.closeColumnModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Cancel</button><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Save</button></div></form></div></div>
+        <div id="archive-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Archived Items</h3></div><div id="archived-items-container" class="p-6 space-y-3 overflow-y-auto"></div><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeArchiveModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Close</button></div></div></div>
+        <div id="save-template-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md"><form id="save-template-form"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Save as Template</h3></div><div class="p-6"><label for="template-name" class="block text-sm font-medium">Template Name</label><input type="text" id="template-name" class="modal-input mt-1" required></div><div class="p-6 bg-gray-50 dark:bg-gray-800/50 flex justify-end space-x-3 rounded-b-xl"><button type="button" onclick="App.closeSaveAsTemplateModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Cancel</button><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Save Template</button></div></form></div></div>
+        <div id="tags-management-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Manage Tags</h3></div><div id="tags-management-list" class="p-6 space-y-3 overflow-y-auto"></div><form id="new-tag-form" class="p-6 mt-auto border-t dark:border-gray-700 flex items-center gap-4"><input type="text" id="new-tag-name" placeholder="New tag name..." class="modal-input flex-grow" required><input type="color" id="new-tag-color" value="#4f46e5" class="p-1 h-10 w-14 block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none"><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Create Tag</button></form><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeTagsManagementModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Done</button></div></div></div>
+        <div id="team-management-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Manage Team</h3></div><div id="team-management-list" class="p-6 space-y-3 overflow-y-auto"></div><form id="new-user-form" class="p-6 mt-auto border-t dark:border-gray-700 flex items-center gap-4"><input type="text" id="new-user-name" placeholder="New member name..." class="modal-input flex-grow" required><button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Add Member</button></form><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeTeamManagementModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Done</button></div></div></div>
+        <div id="activity-log-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Project Activity Log</h3></div><div id="activity-log-container" class="p-6 space-y-4 overflow-y-auto"></div><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeActivityLogModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Close</button></div></div></div>
+        <div id="checklist-templates-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">Manage Checklist Templates</h3></div><div id="checklist-templates-list" class="p-6 space-y-4 overflow-y-auto"></div><div class="p-6 mt-auto border-t dark:border-gray-700"><form id="new-checklist-template-form"><h4 class="font-semibold mb-3">Create New Template</h4><input type="text" id="new-template-name" placeholder="New template name..." class="modal-input mb-2" required><div id="new-template-items-container" class="space-y-2 mb-2"></div><div class="flex items-center space-x-2"><input type="text" id="new-template-item-text" placeholder="Add item to new template..." class="modal-input flex-grow"><button type="button" id="add-item-to-new-template-btn" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-3 rounded-lg">+</button></div><button type="submit" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg">Save New Template</button></form></div><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeChecklistTemplatesModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Done</button></div></div></div>
+        <div id="instructions-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4"><div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"><div class="p-6 border-b dark:border-gray-700"><h3 class="text-xl font-bold">User Guide</h3></div><div id="instructions-container" class="p-6 space-y-6 overflow-y-auto prose dark:prose-invert max-w-none"><h2>Getting Started</h2><p>This is a complete project management tool that runs entirely in your browser. All data is saved locally.</p><ul><li><strong>Creating a Project:</strong> From the main screen, click "+ Create New Project". Give it a name, choose a type (Tasks or Reserve Study), and select a template to get started quickly.</li><li><strong>Opening a Project:</strong> Simply click on any project card from the main screen to open it.</li></ul><h2>The Board View</h2><p>The board is your main workspace, organized into columns that represent stages of your workflow.</p><ul><li><strong>Columns:</strong> You can add, rename, and delete columns. Click and drag a column header to reorder it.</li><li><strong>Cards:</strong> Each card represents a task. Click the global "+" button or the "Add Item" button at the bottom of a column to create a new card. Click on any card to view and edit its details.</li><li><strong>Drag & Drop:</strong> You can drag cards between columns to update their status, or within a column to change their order.</li></ul><h2>Task Details</h2><p>Clicking a card opens the detail modal, where you can manage every aspect of the task.</p><ul><li><strong>Assignees:</strong> Assign one or more team members to a task. You can manage your project's team from the Settings menu.</li><li><strong>Tags:</strong> Add colored labels to categorize your tasks. Manage all project tags from the Settings menu.</li><li><strong>Checklist:</strong> Break down a task into smaller sub-items. You can now add due dates to each checklist item.</li><li><strong>Dependencies:</strong> Create relationships between tasks. A task cannot be moved to "Done" if its prerequisite tasks are not complete.</li><li><strong>Time Tracking:</strong> Start and stop a timer on any task to log your work.</li><li><strong>Recurring Tasks:</strong> Set tasks to automatically recreate themselves daily, weekly, or monthly once completed.</li></ul><h3>Advanced Features</h3><ul><li><strong>Sub-Boards:</strong> Convert any task into its own, separate sub-project. This is great for large, complex tasks that need their own board.</li><li><strong>Automations:</strong> Create "if-this-then-that" rules to automate your workflow. For example, automatically assign a user when a card is moved to the "In Progress" column.</li><li><strong>Gantt & Calendar Views:</strong> Visualize your project timeline with a Gantt chart or see your due dates on a monthly calendar.</li><li><strong>Dashboard:</strong> Get a high-level overview of your project's progress.</li><li><strong>Import/Export:</strong> Save your entire project to a JSON file for backup or to share with others.</li></ul></div><div class="p-4 bg-gray-50 dark:bg-gray-800/50 flex justify-end rounded-b-xl"><button type="button" onclick="App.closeInstructionsModal()" class="bg-gray-200 dark:bg-gray-600 font-semibold py-2 px-4 rounded-lg">Close</button></div></div></div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

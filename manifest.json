@@ -1,0 +1,33 @@
+{
+  "name": "Kanban Project Manager",
+  "short_name": "Kanban",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": [192, 512],
+      "type": "image/png"
+    }
+  ],
+  "related_applications": [],
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "fetch_strategy": "network-first",
+  "splash_pages": ["./splash.html"],
+  "categories": ["productivity", "utility"],
+  "description": "A Kanban-style project management application",
+  "lang": "en",
+  "dir": "ltr",
+  "permissions": ["geolocation", "camera", "microphone"],
+  "host_permissions": ["<all_urls>"],
+  "optional_permissions": ["identity", "payment"],
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "externally_connectable": [{
+    "matches": ["https://*/*", "http://*/*"],
+    "managed": true
+  }],
+  "content_security_policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; connect-src *; script-src-eval *; object-src *; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://*.dhtmlx.com; frame-src https://*.dhtmlx.com; plugin-types; upgrade-insecure-requests;"
+}
