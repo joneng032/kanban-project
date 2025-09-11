@@ -32,7 +32,38 @@ const LocalStorageDB = {
             toArray: () => Promise.resolve([...self._data[name]]),
             bulkAdd: items => { self._data[name].push(...items); self._save(); return Promise.resolve(); },
             bulkUpdate: updates => { updates.forEach(update => { let item = self._data[name].find(row => row.id === update.key); if(item) Object.assign(item, update.changes); }); self._save(); return Promise.resolve(); },
-            where: query => { const results = self._data[name].filter(row => Object.keys(query).every(key => row[key] == query[key])); return { toArray: () => Promise.resolve(results), primaryKeys: () => Promise.resolve(results.map(r => r.id)), sortBy: sortKey => Promise.resolve([...results].sort((a, b) => a[sortKey] < b[sortKey] ? -1 : 1)) }; },
+            where: query => {
+                // Support two shapes:
+                // 1) where({ prop: value }) -> { toArray(), primaryKeys(), sortBy() }
+                // 2) where('field').equals(value) -> { toArray(), first(), modify() }
+                if (typeof query === 'object') {
+                    const results = self._data[name].filter(row => Object.keys(query).every(key => row[key] == query[key]));
+                    return { toArray: () => Promise.resolve(results), primaryKeys: () => Promise.resolve(results.map(r => r.id)), sortBy: sortKey => Promise.resolve([...results].sort((a, b) => a[sortKey] < b[sortKey] ? -1 : 1)) };
+                }
+                // query is a field name
+                const field = query;
+                return {
+                    equals: val => {
+                        const matching = self._data[name].filter(row => row[field] == val);
+                        return {
+                            toArray: () => Promise.resolve([...matching]),
+                            first: () => Promise.resolve(matching.length ? matching[0] : null),
+                            // modify accepts a mutator function and applies it to each matched row
+                            modify: (mutator) => {
+                                let modified = 0;
+                                self._data[name].forEach((row) => {
+                                    if (row[field] == val) {
+                                        try { mutator(row); } catch (e) { /* swallow user errors in mutator to mimic DB behaviour */ }
+                                        modified++;
+                                    }
+                                });
+                                self._save();
+                                return Promise.resolve(modified);
+                            }
+                        };
+                    }
+                };
+            },
             sortBy: key => Promise.resolve([...self._data[name]].sort((a, b) => a[key] < b[key] ? -1 : 1))
         };
     },
