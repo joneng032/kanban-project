@@ -5,8 +5,10 @@
   "scripts": {
     "smoke": "node scripts/smoke-test.js",
     "interaction": "node scripts/interaction-test.js",
-    "interaction:playwright": "node scripts/playwright-interaction-test.js",
-    "ci:test": "node scripts/playwright-interaction-test.js",
+  "interaction:playwright": "node scripts/playwright-interaction-test.js",
+  "ci:test": "node scripts/playwright-interaction-test.js",
+  "test:db": "npx playwright test tests/db-where.spec.js --project=chromium",
+  "test": "npx playwright test",
     "lint:css": "stylelint \"css/**/*.css\" --fix"
   },
   "devDependencies": {
