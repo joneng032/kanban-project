@@ -10,10 +10,24 @@ const { chromium } = require('playwright');
   page.on('pageerror', err => console.error('PAGE ERROR:', err));
 
   const url = 'http://localhost:8000/';
-  await page.goto(url, { waitUntil: 'networkidle' });
+  // helper: retry page.goto if the local server is still starting (useful in CI)
+  const waitForServerAndGoto = async (u, attempts = 8, delayMs = 500) => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        await page.goto(u, { waitUntil: 'networkidle', timeout: 10000 });
+        return true;
+      } catch (err) {
+        console.log(`goto attempt ${i + 1} failed:`, err.message);
+        await page.waitForTimeout(delayMs);
+      }
+    }
+    throw new Error(`Could not reach ${u} after ${attempts} attempts`);
+  };
 
-  // Wait for App
-  await page.waitForFunction(() => window.App && window.App.fetchAndRefresh, { timeout: 5000 });
+  await waitForServerAndGoto(url);
+
+  // Wait for App (increase timeout because CI runners can be slower)
+  await page.waitForFunction(() => window.App && window.App.fetchAndRefresh, { timeout: 15000 });
 
   // Use in-page db module to create project, columns, and item
   // We'll use a fixed prefix to make later IDs predictable; the numerical projectId is returned by db and used to compose deterministic IDs
@@ -76,9 +90,9 @@ const { chromium } = require('playwright');
 
   // Wait for the item card to be attached (it may be hidden by CSS/transitions)
   const cardSelector = `[data-id="${itemId}"]`;
-  await page.waitForSelector(cardSelector, { state: 'attached', timeout: 5000 });
+  await page.waitForSelector(cardSelector, { state: 'attached', timeout: 10000 });
   // Ensure the element is visible and has a non-zero bounding rect. Retry several times if layout hasn't settled.
-  const ensureVisibleAndSized = async (sel, attempts = 12, delayMs = 250) => {
+  const ensureVisibleAndSized = async (sel, attempts = 16, delayMs = 300) => {
     for (let i = 0; i < attempts; i++) {
       const res = await page.evaluate((s) => {
         const el = document.querySelector(s);
@@ -88,6 +102,8 @@ const { chromium } = require('playwright');
         return { present: true, display: style.display, visibility: style.visibility, offsetParent: el.offsetParent ? true : false, width: rect.width, height: rect.height };
       }, sel);
       if (res.present && res.display !== 'none' && res.visibility !== 'hidden' && res.offsetParent && res.width > 0 && res.height > 0) return true;
+      // diagnostic logging for flaky layout issues
+      console.log(`ensureVisibleAndSized attempt ${i + 1} for ${sel}:`, res);
       // wait and retry
       await page.waitForTimeout(delayMs);
     }
